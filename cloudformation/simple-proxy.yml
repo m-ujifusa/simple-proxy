@@ -4,7 +4,7 @@ Description: 'Simple Proxy Server'
 Parameters:
   NamePrefix:
     Type: String
-    Default: 'your-prefix'
+    Default: 'test-cf'
     Description: 'Prefix for resources, only use dashes for special characters.'
   ProxyPort:
     Type: Number
