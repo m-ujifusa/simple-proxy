@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Simple Proxy Server'
+
+Parameters:
+  NamePrefix:
+    Type: String
+    Default: 'your-prefix'
+    Description: 'Prefix for resources, only use dashes for special characters.'
+  ProxyPort:
+    Type: Number
+    Default: 3128
+    Description: 'Port traffic is proxied through.'
+  AmiId:
+    Type: 'AWS::EC2::Image::Id'
+    Default: 'ami-080e1f13689e07408'
+    Description: 'Default AWS Ubuntu 22'
+  InstanceType:
+    Type: String
+    Default: 't2.micro'
+    Description: 'Size of EC2 Instance'
+  TurnOnProxySchedule:
+    Type: String
+    Default: 'cron(0 16 * * ? *)'
+    Description: 'Every day at 11am Central Standard Time in UTC'
+  TurnOffProxySchedule:
+    Type: String
+    Default: 'cron(0 4 * * ? *)'
+    Description: 'Every day at 11pm Central Standard Time in UTC'
+
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-vpc'
+
+  Subnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: '10.0.1.0/24'
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-subnet'
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-igw'
+
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-public-route-table'
+
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref PublicRouteTable
+
+  ProxyServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupName: !Sub '${NamePrefix}-sg'
+      GroupDescription: 'Allow proxy traffic from source IP.'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Sub '${AWS::EC2::EIP.AllocationId}/32'
+        - IpProtocol: tcp
+          FromPort: !Ref ProxyPort
+          ToPort: !Ref ProxyPort
+          CidrIp: !Sub '${AWS::EC2::EIP.AllocationId}/32'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: 0
+          ToPort: 0
+          CidrIp: '0.0.0.0/0'
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-sg'
+
+  ProxyServerEIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref ProxyServerInstance
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-ip'
+
+  ProxyServerKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: !Sub '${NamePrefix}-key-pair'
+      PublicKeyMaterial: !GetAtt ProxyServerInstance.PublicKey
+
+  ProxyServerInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref ProxyServerKeyPair
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref Subnet
+          GroupSet:
+            - !Ref ProxyServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Update packages
+          sudo apt update -y
+          # Install Squid proxy
+          sudo apt install squid -y
+          # Create a new Squid configuration file
+          sudo tee /etc/squid/squid.conf > /dev/null <<EOT
+          acl allowed_ip src ${AWS::EC2::EIP.AllocationId}/32
+          http_access allow allowed_ip
+          http_access deny all
+          http_port ${ProxyPort}
+          # Allow CONNECT requests
+          acl SSL_ports port 443
+          acl Safe_ports port 80
+          acl Safe_ports port 21
+          acl Safe_ports port 443
+          acl Safe_ports port 70
+          acl Safe_ports port 210
+          acl Safe_ports port 1025-65535
+          acl Safe_ports port 280
+          acl Safe_ports port 488
+          acl Safe_ports port 591
+          acl Safe_ports port 777
+          acl CONNECT method CONNECT
+          http_access allow CONNECT SSL_ports
+          http_access allow CONNECT Safe_ports
+          # Enable SSL/TLS tunneling
+          ssl_bump server-first all
+          EOT
+          # Restart Squid service
+          sudo systemctl restart squid
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-proxy'
+
+  AutomationRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'automation-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ssm.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole'
+
+  StartProxyMaintenanceWindow:
+    Type: 'AWS::SSM::MaintenanceWindow'
+    Properties:
+      Name: !Sub '${NamePrefix}-start-time'
+      Schedule: !Ref TurnOnProxySchedule
+      Cutoff: 1
+      Duration: 2
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-start-time'
+
+  StopProxyMaintenanceWindow:
+    Type: 'AWS::SSM::MaintenanceWindow'
+    Properties:
+      Name: !Sub '${NamePrefix}-stop-time'
+      Schedule: !Ref TurnOffProxySchedule
+      Cutoff: 1
+      Duration: 2
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-stop-time'
+
+  StartProxyTask:
+    Type: 'AWS::SSM::MaintenanceWindowTask'
+    Properties:
+      WindowId: !Ref StartProxyMaintenanceWindow
+      TaskType: AUTOMATION
+      TaskArn: 'AWS-StartEC2Instance'
+      Priority: 1
+      MaxConcurrency: 1
+      MaxErrors: 1
+      ServiceRoleArn: !GetAtt AutomationRole.Arn
+      TaskInvocationParameters:
+        AutomationParameters:
+          - Name: InstanceId
+            Values:
+              - !Ref ProxyServerInstance
+
+  StopProxyTask:
+    Type: 'AWS::SSM::MaintenanceWindowTask'
+    Properties:
+      WindowId: !Ref StopProxyMaintenanceWindow
+      TaskType: AUTOMATION
+      TaskArn: 'AWS-StopEC2Instance'
+      Priority: 1
+      MaxConcurrency: 1
+      MaxErrors: 1
+      ServiceRoleArn: !GetAtt AutomationRole.Arn
+      TaskInvocationParameters:
+        AutomationParameters:
+          - Name: InstanceId
+            Values:
+              - !Ref ProxyServerInstance
