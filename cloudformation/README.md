@@ -1,5 +1,3 @@
-Here's the updated README with spaces between the images and text:
-
 # Instructions for Setting Up Your Personal Proxy
 
 Please note! The monthly cost of running this proxy is ~$6. The proxy is running on the cheapest available server type and automatically shuts down from 11pm-11am CST daily to save on cost.
