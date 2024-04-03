@@ -1,52 +1,52 @@
-Here's the cleaned-up version with some additions:
-
-# Instructions for Setting Up Your Personal Proxy
+# Instructions for Setting Up Your Personal Proxy 
 
 Please note! The monthly cost of running this proxy is ~$6. The proxy is running on the cheapest available server type and automatically shuts down from 11pm-11am CST daily to save on cost.
 
+Important! Proxy Server that is created is only accessible from your IP address. If you change Wi-Fi you will not be able to access.
+
 ## Prerequisites
-1. Sign up for AWS: [AWS Signup](https://portal.aws.amazon.com/gp/aws/developer/registration/index.html?refid=em_127222){width="400" height="300"}
+1. Sign up for AWS: [AWS Signup](https://portal.aws.amazon.com/gp/aws/developer/registration/index.html?refid=em_127222)
 
 ## Steps
 1. **Go to the CloudFormation service in the AWS Console**
    - From the AWS Console home page, click on the "CloudFormation" service under the "Services" menu.
-   ![Go to Cloudformation](./assets/1.cloudformation-navigation.png){width="400" height="300"}
+   <img src="./assets/1.cloudformation-navigation.png" width="600">
    - Make sure to check that you are in the us-east-1 region in the upper right-hand corner.
-   ![AWS Region](./assets/us-east-1.png){width="400" height="300"}
+   <img src="./assets/us-east-1.png" width="600">
 
 2. **Create a new stack**
    - On the CloudFormation Stacks page, click the "Create stack" button in the upper right to start creating a new stack.
-   ![Create Stack](./assets/2.cloudformation-create-stack.png){width="400" height="300"}
+   <img src="./assets/2.cloudformation-create-stack.png" width="600">
 
 3. **Upload the simple-proxy.yaml file**
    - On the "Create stack" page, under "Prerequisite - Prepare template", select the "Upload a template file" option.
    - Click the "Choose file" button and select the JSON or YAML formatted CloudFormation template file you want to use.
-   ![Upload File](./assets/3.cloudformation-upload-file.png){width="400" height="300"}
+   <img src="./assets/3.cloudformation-upload-file.png" width="600">
 
 4. **Change your IP**
    - Choose a stack name (no special characters or spaces).
    - **Very important, change the SourceIP parameter. This value will be your IP that you are trying to mask. You can find the value at https://api.ipify.org.**
-   ![Change Source IP](./assets/4.cloudformation-change-ip-param.png){width="400" height="300"}
+   <img src="./assets/4.cloudformation-change-ip-param.png" width="600">
 
 5. **Check acknowledge box and click Submit**
-   ![Submit](./assets/5.cloudformation-submit.png){width="400" height="300"}
+   <img src="./assets/5.cloudformation-submit.png" width="600">
 
 6. **Wait for CloudFormation Stack to create**
    - This should take 1-2 minutes.
-   ![Wait for Creation](./assets/6.cloudformation-wait-for-creation-complete.png){width="400" height="300"}
+   <img src="./assets/6.cloudformation-wait-for-creation-complete.png" width="600">
 
 7. **Navigate to the EC2 page**
-   ![Navigate to EC2](./assets/7.navigate-to-ec2.png){width="400" height="300"}
+   <img src="./assets/7.navigate-to-ec2.png" width="600">
 
 8. **Click on Instances**
-   ![Click on Instances](./assets/8.click-on-instances.png){width="400" height="300"}
+   <img src="./assets/8.click-on-instances.png" width="600">
 
 9. **Click on your newly created instance (aka your proxy server)**
-   ![Click on Instance](./assets/9.click-on-instance.png){width="400" height="300"}
+   <img src="./assets/9.click-on-instance.png" width="600">
 
 10. **Take note of the public IP address**
     - This is the IP you will use to configure the proxy on your computer/iPhone/tablet.
-    ![Note IP](./assets/10.proxy-ip.png){width="400" height="300"}
+    <img src="./assets/10.proxy-ip.png" width="600">
 
 Remember, the most critical step is to **change the SourceIP parameter to your actual IP address** that you want to mask. You can find your IP address at https://api.ipify.org.
 
