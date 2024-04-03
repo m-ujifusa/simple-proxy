@@ -4,7 +4,7 @@ Description: 'Simple Proxy Server'
 Parameters:
   NamePrefix:
     Type: String
-    Default: 'test-cf'
+    Default: 'go-twins'
     Description: 'Prefix for resources, only use dashes for special characters.'
   ProxyPort:
     Type: Number
@@ -14,10 +14,6 @@ Parameters:
     Type: 'AWS::EC2::Image::Id'
     Default: 'ami-080e1f13689e07408'
     Description: 'Default AWS Ubuntu 22'
-  InstanceType:
-    Type: String
-    Default: 't2.micro'
-    Description: 'Size of EC2 Instance'
   TurnOnProxySchedule:
     Type: String
     Default: 'cron(0 16 * * ? *)'
@@ -26,6 +22,14 @@ Parameters:
     Type: String
     Default: 'cron(0 4 * * ? *)'
     Description: 'Every day at 11pm Central Standard Time in UTC'
+  InstanceType:
+    Type: String
+    Default: 't2.nano'
+    Description: 'EC2 instance type for the proxy server'
+  SourceIP:
+    Type: String
+    Default: 'CHANGE ME'
+    Description: 'Use your IP Address which can be found here https://api.ipify.org'
 
 Resources:
   VPC:
@@ -90,11 +94,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: !Sub '${AWS::EC2::EIP.AllocationId}/32'
+          CidrIp: !Sub '${SourceIP}/32'
         - IpProtocol: tcp
           FromPort: !Ref ProxyPort
           ToPort: !Ref ProxyPort
-          CidrIp: !Sub '${AWS::EC2::EIP.AllocationId}/32'
+          CidrIp: !Sub '${SourceIP}/32'
       SecurityGroupEgress:
         - IpProtocol: '-1'
           FromPort: 0
@@ -108,7 +112,6 @@ Resources:
     Type: 'AWS::EC2::EIP'
     Properties:
       Domain: vpc
-      InstanceId: !Ref ProxyServerInstance
       Tags:
         - Key: Name
           Value: !Sub '${NamePrefix}-ip'
@@ -117,7 +120,6 @@ Resources:
     Type: 'AWS::EC2::KeyPair'
     Properties:
       KeyName: !Sub '${NamePrefix}-key-pair'
-      PublicKeyMaterial: !GetAtt ProxyServerInstance.PublicKey
 
   ProxyServerInstance:
     Type: 'AWS::EC2::Instance'
@@ -140,7 +142,7 @@ Resources:
           sudo apt install squid -y
           # Create a new Squid configuration file
           sudo tee /etc/squid/squid.conf > /dev/null <<EOT
-          acl allowed_ip src ${AWS::EC2::EIP.AllocationId}/32
+          acl allowed_ip src ${SourceIP}/32
           http_access allow allowed_ip
           http_access deny all
           http_port ${ProxyPort}
@@ -168,10 +170,16 @@ Resources:
         - Key: Name
           Value: !Sub '${NamePrefix}-proxy'
 
+  EIPAssociation:
+    Type: 'AWS::EC2::EIPAssociation'
+    Properties:
+      EIP: !Ref ProxyServerEIP
+      InstanceId: !Ref ProxyServerInstance
+
   AutomationRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: 'automation-role'
+      RoleName: 'ssm-automation-role'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -189,6 +197,7 @@ Resources:
       Schedule: !Ref TurnOnProxySchedule
       Cutoff: 1
       Duration: 2
+      AllowUnassociatedTargets: false
       Tags:
         - Key: Name
           Value: !Sub '${NamePrefix}-start-time'
@@ -200,6 +209,7 @@ Resources:
       Schedule: !Ref TurnOffProxySchedule
       Cutoff: 1
       Duration: 2
+      AllowUnassociatedTargets: false
       Tags:
         - Key: Name
           Value: !Sub '${NamePrefix}-stop-time'
@@ -211,13 +221,11 @@ Resources:
       TaskType: AUTOMATION
       TaskArn: 'AWS-StartEC2Instance'
       Priority: 1
-      MaxConcurrency: 1
-      MaxErrors: 1
       ServiceRoleArn: !GetAtt AutomationRole.Arn
       TaskInvocationParameters:
-        AutomationParameters:
-          - Name: InstanceId
-            Values:
+        MaintenanceWindowAutomationParameters:
+          Parameters:
+            InstanceId:
               - !Ref ProxyServerInstance
 
   StopProxyTask:
@@ -227,11 +235,9 @@ Resources:
       TaskType: AUTOMATION
       TaskArn: 'AWS-StopEC2Instance'
       Priority: 1
-      MaxConcurrency: 1
-      MaxErrors: 1
       ServiceRoleArn: !GetAtt AutomationRole.Arn
       TaskInvocationParameters:
-        AutomationParameters:
-          - Name: InstanceId
-            Values:
+        MaintenanceWindowAutomationParameters:
+          Parameters:
+            InstanceId:
               - !Ref ProxyServerInstance
