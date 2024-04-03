@@ -1,5 +1,5 @@
 variable "name_prefix" {
-  default     = "your-prefix"
+  default     = "go-twins"
   description = "Prefix for resources, only use dashes for special characters."
   type        = string
 }

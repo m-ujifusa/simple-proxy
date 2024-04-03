@@ -11,9 +11,8 @@ resource "aws_key_pair" "generated_key" {
 
 resource "aws_instance" "proxy_server" {
   ami           = var.ami_id
-  instance_type = "t2.micro"
+  instance_type = "t2.nano"
   key_name      = aws_key_pair.generated_key.key_name
-  # key_name                    = "mlb-stream"
   associate_public_ip_address = true
   subnet_id                   = aws_subnet.main.id
   vpc_security_group_ids      = [aws_security_group.proxy_server.id]
