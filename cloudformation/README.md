@@ -26,7 +26,7 @@ Important! Proxy Server that is created is only accessible from your IP address.
 
 3. **Upload the simple-proxy.yaml file**
    - On the "Create stack" page, under "Prerequisite - Prepare template", select the "Upload a template file" option.
-   - Click the "Choose file" button and select the JSON or YAML formatted CloudFormation template file you want to use.  
+   - Click the "Choose file" button and upload the simple-proxy.yaml file found in this repo.
 
    <img src="./assets/3.cloudformation-upload-file.png" width="600">  
 
