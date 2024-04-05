@@ -2,18 +2,19 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Simple Proxy Server'
 
 Parameters:
+  SourceIP:
+    Type: String
+    Default: 'CHANGE ME'
+    Description: 'Use your IP Address which can be found here https://api.ipify.org'
   NamePrefix:
     Type: String
     Default: 'go-twins'
     Description: 'Prefix for resources, only use dashes for special characters.'
-  ProxyPort:
-    Type: Number
-    Default: 3128
-    Description: 'Port traffic is proxied through.'
-  AmiId:
-    Type: 'AWS::EC2::Image::Id'
-    Default: 'ami-080e1f13689e07408'
-    Description: 'Default AWS Ubuntu 22'
+  StartStopAutomationEnabled:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'false'
+    Description: 'Toggle proxy stop/start automation. Will be unavailable half of the day.'
   TurnOnProxySchedule:
     Type: String
     Default: 'cron(0 16 * * ? *)'
@@ -22,14 +23,18 @@ Parameters:
     Type: String
     Default: 'cron(0 4 * * ? *)'
     Description: 'Every day at 11pm Central Standard Time in UTC'
+  ProxyPort:
+    Type: Number
+    Default: 3128
+    Description: 'Port traffic is proxied through.'
+  AmiId:
+    Type: 'AWS::EC2::Image::Id'
+    Default: 'ami-080e1f13689e07408'
+    Description: 'Default AWS Ubuntu 22'
   InstanceType:
     Type: String
     Default: 't2.nano'
     Description: 'EC2 instance type for the proxy server'
-  SourceIP:
-    Type: String
-    Default: 'CHANGE ME'
-    Description: 'Use your IP Address which can be found here https://api.ipify.org'
 
 Resources:
   VPC:
@@ -216,6 +221,7 @@ Resources:
 
   StartProxyTask:
     Type: 'AWS::SSM::MaintenanceWindowTask'
+    Condition: StartStopAutomationEnabled
     Properties:
       WindowId: !Ref StartProxyMaintenanceWindow
       TaskType: AUTOMATION
@@ -230,6 +236,7 @@ Resources:
 
   StopProxyTask:
     Type: 'AWS::SSM::MaintenanceWindowTask'
+    Condition: StartStopAutomationEnabled
     Properties:
       WindowId: !Ref StopProxyMaintenanceWindow
       TaskType: AUTOMATION
@@ -241,3 +248,6 @@ Resources:
           Parameters:
             InstanceId:
               - !Ref ProxyServerInstance
+Conditions:
+  StartStopAutomationEnabled:
+    !Equals [!Ref StartStopAutomationEnabled, 'true']
