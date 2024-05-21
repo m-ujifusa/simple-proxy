@@ -29,8 +29,8 @@ Parameters:
     Description: 'Port traffic is proxied through.'
   AmiId:
     Type: 'AWS::EC2::Image::Id'
-    Default: 'ami-0c4596ce1e7ae3e68'
-    Description: 'Default AWS Ubuntu 24 AMI in ca-central-1 region'
+    Default: 'ami-080e1f13689e07408'
+    Description: 'Default AWS Ubuntu 22'
   InstanceType:
     Type: String
     Default: 't2.nano'

@@ -17,9 +17,9 @@ Important! Proxy Server that is created is only accessible from your IP address.
 
    <img src="./assets/1.cloudformation-navigation.png" width="600">  
 
-   - Make sure to check that you are in the ca-central-1 region in the upper right-hand corner.  
+   - Make sure to check that you are in the us-east-1 region in the upper right-hand corner.  
 
-   <img src="./assets/ca-central-1.png" width="600">  
+   <img src="./assets/us-east-1.png" width="600">  
 
 2. **Create a new stack**
    - On the CloudFormation Stacks page, click the "Create stack" button in the upper right to start creating a new stack.  
