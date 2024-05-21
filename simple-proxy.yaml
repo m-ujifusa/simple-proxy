@@ -10,31 +10,22 @@ Parameters:
     Type: String
     Default: 'go-twins'
     Description: 'Prefix for resources, only use dashes for special characters.'
-  StartStopAutomationEnabled:
-    Type: String
-    AllowedValues: ['true', 'false']
-    Default: 'false'
-    Description: 'Toggle proxy stop/start automation. Will be unavailable half of the day.'
-  TurnOnProxySchedule:
-    Type: String
-    Default: 'cron(0 16 * * ? *)'
-    Description: 'Every day at 11am Central Standard Time in UTC'
-  TurnOffProxySchedule:
-    Type: String
-    Default: 'cron(0 4 * * ? *)'
-    Description: 'Every day at 11pm Central Standard Time in UTC'
   ProxyPort:
     Type: Number
     Default: 3128
     Description: 'Port traffic is proxied through.'
   AmiId:
     Type: 'AWS::EC2::Image::Id'
-    Default: 'ami-080e1f13689e07408'
-    Description: 'Default AWS Ubuntu 22'
+    Default: 'ami-0c4596ce1e7ae3e68'
+    Description: 'Default AWS Ubuntu 24 AMI in ca-central-1 region'
   InstanceType:
     Type: String
     Default: 't2.nano'
     Description: 'EC2 instance type for the proxy server'
+  AvailabilityZone:
+    Type: String
+    Default: 'ca-central-1a'
+    Description: 'Do not change'    
 
 Resources:
   VPC:
@@ -49,6 +40,7 @@ Resources:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
+      AvailabilityZone: !Ref AvailabilityZone
       CidrBlock: '10.0.1.0/24'
       Tags:
         - Key: Name
@@ -180,74 +172,3 @@ Resources:
     Properties:
       EIP: !Ref ProxyServerEIP
       InstanceId: !Ref ProxyServerInstance
-
-  AutomationRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      RoleName: 'ssm-automation-role'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ssm.amazonaws.com
-            Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole'
-
-  StartProxyMaintenanceWindow:
-    Type: 'AWS::SSM::MaintenanceWindow'
-    Properties:
-      Name: !Sub '${NamePrefix}-start-time'
-      Schedule: !Ref TurnOnProxySchedule
-      Cutoff: 1
-      Duration: 2
-      AllowUnassociatedTargets: false
-      Tags:
-        - Key: Name
-          Value: !Sub '${NamePrefix}-start-time'
-
-  StopProxyMaintenanceWindow:
-    Type: 'AWS::SSM::MaintenanceWindow'
-    Properties:
-      Name: !Sub '${NamePrefix}-stop-time'
-      Schedule: !Ref TurnOffProxySchedule
-      Cutoff: 1
-      Duration: 2
-      AllowUnassociatedTargets: false
-      Tags:
-        - Key: Name
-          Value: !Sub '${NamePrefix}-stop-time'
-
-  StartProxyTask:
-    Type: 'AWS::SSM::MaintenanceWindowTask'
-    Condition: StartStopAutomationEnabled
-    Properties:
-      WindowId: !Ref StartProxyMaintenanceWindow
-      TaskType: AUTOMATION
-      TaskArn: 'AWS-StartEC2Instance'
-      Priority: 1
-      ServiceRoleArn: !GetAtt AutomationRole.Arn
-      TaskInvocationParameters:
-        MaintenanceWindowAutomationParameters:
-          Parameters:
-            InstanceId:
-              - !Ref ProxyServerInstance
-
-  StopProxyTask:
-    Type: 'AWS::SSM::MaintenanceWindowTask'
-    Condition: StartStopAutomationEnabled
-    Properties:
-      WindowId: !Ref StopProxyMaintenanceWindow
-      TaskType: AUTOMATION
-      TaskArn: 'AWS-StopEC2Instance'
-      Priority: 1
-      ServiceRoleArn: !GetAtt AutomationRole.Arn
-      TaskInvocationParameters:
-        MaintenanceWindowAutomationParameters:
-          Parameters:
-            InstanceId:
-              - !Ref ProxyServerInstance
-Conditions:
-  StartStopAutomationEnabled:
-    !Equals [!Ref StartStopAutomationEnabled, 'true']
